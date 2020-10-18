@@ -23,22 +23,23 @@ public class Shell
 			}
 			
 			//mTimer.schedule(new MainProcess(),0,60*1000*5);
-			System.out.println("启动成功");
-			new Thread(){
-				public void run(){
-			while(true){
-				kill();
-				try
-				{
-					Thread.sleep(60 * 1000);
-				}
-				catch (InterruptedException e)
-				{}
-			}
-			}}.start();
+			
 			try
 			{
 				ServerSocket ss=new ServerSocket(3335);
+				new Thread(){
+					public void run(){
+						while(true){
+							kill();
+							try
+							{
+								Thread.sleep(60 * 1000);
+							}
+							catch (InterruptedException e)
+							{}
+						}
+					}}.start();
+					System.out.println("启动成功");
 				while(true){
 					final Socket socket=ss.accept();
 					new Thread(){
@@ -59,7 +60,11 @@ public class Shell
 		try
 		{
 			BufferedReader br=new BufferedReader(new InputStreamReader(socket.getInputStream()));
-			java.lang.Process process=Runtime.getRuntime().exec("sh");
+			ProcessBuilder pb=new ProcessBuilder();
+			pb.directory(new File("/sdcard"));
+			pb.redirectErrorStream(true);
+			pb.command("sh");
+			java.lang.Process process=pb.start();
 			PrintWriter pw=new PrintWriter(process.getOutputStream());
 			String line=null;
 			System.out.println("读");
