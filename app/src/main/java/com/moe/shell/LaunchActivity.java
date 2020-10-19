@@ -12,7 +12,7 @@ public class LaunchActivity extends Activity
 		// TODO: Implement this method
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.running_view);
-		Object o=Shell.getProcess();
+		//Object o=Shell.getProcess();
 	}
 
 	@Override

@@ -3,6 +3,9 @@ import java.io.*;
 import java.util.*;
 import java.util.regex.*;
 import java.net.*;
+import java.util.concurrent.*;
+import java.nio.channels.*;
+import java.nio.*;
 
 public class Shell
 {
@@ -26,8 +29,8 @@ public class Shell
 			
 			try
 			{
-				ServerSocket ss=new ServerSocket(3335);
-				new Thread(){
+				//ServerSocket ss=new ServerSocket(3335);
+				/*new Thread(){
 					public void run(){
 						while(true){
 							kill();
@@ -38,23 +41,103 @@ public class Shell
 							catch (InterruptedException e)
 							{}
 						}
-					}}.start();
+					}}.start();*/
+				ServerSocketChannel ssc=ServerSocketChannel.open();
+					ssc.configureBlocking(false);
+					ssc.socket().bind(new InetSocketAddress(3335));
+				ScheduledExecutorService service = Executors
+					.newSingleThreadScheduledExecutor();
+				
+				service.scheduleAtFixedRate(new Runnable(){
+
+						@Override
+						public void run()
+						{
+							kill();
+						}
+					}, 0, 1, TimeUnit.MINUTES);
+				 
 					System.out.println("启动成功");
-				while(true){
+				/*while(!ss.isClosed()){
 					final Socket socket=ss.accept();
 					new Thread(){
 						public void run(){
 							handle(socket);
 						}
 					}.start();
+				}*/
+				Selector mSelector=Selector.open();
+				ssc.register(mSelector,SelectionKey.OP_ACCEPT);
+				ByteBuffer echoBuffer=ByteBuffer.allocate(1048576);
+				while(true){
+					int num=mSelector.select();
+					if(num<1)continue;
+					Iterator<SelectionKey> iterator=mSelector.selectedKeys().iterator();
+					while(iterator.hasNext()){
+						SelectionKey key=iterator.next();
+						if((key.readyOps()&SelectionKey.OP_ACCEPT)==SelectionKey.OP_ACCEPT){
+							ServerSocketChannel serverChanel = (ServerSocketChannel)key.channel(); 
+							SocketChannel sc = serverChanel.accept(); 
+							sc.configureBlocking( false );
+							SelectionKey newKey = sc.register( mSelector, 
+															  SelectionKey.OP_READ ); 
+							iterator.remove();
+						}else if((key.readyOps()&SelectionKey.OP_READ)==SelectionKey.OP_READ){
+							SocketChannel sc = (SocketChannel)key.channel();
+							int bytesEchoed = 0; 
+							while((bytesEchoed = sc.read(echoBuffer))> 0){ 
+								System.out.println("bytesEchoed:"+bytesEchoed); 
+							} 
+							echoBuffer.flip(); 
+							byte [] content = new byte[echoBuffer.limit()]; 
+							echoBuffer.get(content); 
+							String result=new String(content);
+							doPost(result,sc,echoBuffer);
+							echoBuffer.clear(); 
+							iterator.remove(); 
+						}
+					}
+					
 				}
 			}
 			catch (Exception e)
 			{
+				System.exit(2);
 				System.out.println(e.getMessage());
 			}
 		}
 		
+	}
+	static void doPost(String result,SocketChannel sc,ByteBuffer buff){
+		try
+		{
+			ProcessBuilder pb=new ProcessBuilder();
+			pb.directory(new File("/sdcard"));
+			pb.redirectErrorStream(true);
+			pb.command("sh");
+			java.lang.Process process=pb.start();
+			PrintWriter pw=new PrintWriter(process.getOutputStream());
+			pw.println(result);
+			pw.println("exit");
+			pw.flush();
+			BufferedReader response=new BufferedReader(new InputStreamReader(process.getInputStream()));
+			buff.clear();
+			String line=null;
+			while((line=response.readLine())!=null){
+				buff.put(line.getBytes());
+				buff.putChar('\n');
+				buff.flip();
+				buff.limit();
+				sc.write(buff);
+				buff.clear();
+			}
+			//out.print("--exit--");
+			sc.close();
+		}
+		catch (Exception e)
+		{
+			System.out.println(e.getMessage());
+		}
 	}
 	static void handle(Socket socket){
 		try
@@ -154,7 +237,7 @@ public class Shell
 		System.out.println(list.toString());
 		return list;
 	}
-	public static List<String> getProcess(){
+	/*public static List<String> getProcess(){
 		List<String> list=new ArrayList<>();
 		try
 		{
@@ -193,7 +276,7 @@ public class Shell
 		System.out.println("Process:");
 		System.out.println(list.toString());
 		return list;
-	}
+	}*/
 	public static void kill(String packageName){
 		try
 		{

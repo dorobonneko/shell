@@ -7,6 +7,7 @@ import android.view.View.*;
 import android.view.*;
 import java.io.*;
 import java.net.*;
+import android.text.method.*;
 
 public class MainActivity extends Activity implements View.OnClickListener
 {
@@ -22,6 +23,8 @@ public class MainActivity extends Activity implements View.OnClickListener
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
 		screen=findViewById(R.id.screen);
+		screen.setMovementMethod(ScrollingMovementMethod.getInstance());
+		screen.setTextIsSelectable(true);
 		input=findViewById(R.id.input);
 		findViewById(R.id.send).setOnClickListener(this);
 		
@@ -37,7 +40,7 @@ public class MainActivity extends Activity implements View.OnClickListener
 			String text=input.getText().toString();
 			PrintWriter pw=new PrintWriter(s.getOutputStream());
 			pw.println(text);
-			pw.println("--exit--");
+			//pw.println("--exit--");
 			pw.flush();
 			BufferedReader br=new BufferedReader(new InputStreamReader(s.getInputStream()));
 			StringBuilder sb=new StringBuilder();
