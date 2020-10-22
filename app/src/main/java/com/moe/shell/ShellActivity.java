@@ -9,7 +9,7 @@ import java.io.*;
 import java.net.*;
 import android.text.method.*;
 
-public class MainActivity extends Activity implements View.OnClickListener
+public class ShellActivity extends Activity implements View.OnClickListener
 {
 	TextView screen;
 	EditText input;

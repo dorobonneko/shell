@@ -11,7 +11,7 @@ public class Shell
 {
 	private static List<String> whitelist=new ArrayList<>();
 	private static Pattern processPattern=Pattern.compile("^\\*APP\\*\\sUID\\s(\\d*?)\\sProcessRecord\\{.*?\\s\\d*?:([\\.a-zA-Z0-9:].*?)/.*?\\}$");
-	
+	private static PrintWriter exec;
 	public static void main(String[] args){
 		if(android.os.Process.myUid()>2000){
 			System.out.println("权限不足！");
@@ -54,6 +54,7 @@ public class Shell
 						public void run()
 						{
 							kill();
+							//System.exit(0);
 						}
 					}, 0, 1, TimeUnit.MINUTES);
 				 
@@ -139,7 +140,7 @@ public class Shell
 			System.out.println(e.getMessage());
 		}
 	}
-	static void handle(Socket socket){
+	/*static void handle(Socket socket){
 		try
 		{
 			BufferedReader br=new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -173,7 +174,7 @@ public class Shell
 		}
 		catch (Exception e)
 		{
-			
+			System.out.println(e.getMessage());
 		}finally{
 			try
 			{
@@ -182,10 +183,10 @@ public class Shell
 			catch (IOException ee)
 			{}
 		}
-	}
+	}*/
 	static void kill(){
 			try{
-				List<String> recents=getRecents();
+				Set<String> recents=getRecents();
 			for(String packageName:getBlackList()){
 				if(whitelist.contains(packageName)||recents.contains(packageName))
 					continue;
@@ -198,22 +199,30 @@ public class Shell
 		
 		
 	
-	public static List<String> getRecents(){
-		List<String> list=new ArrayList<>();
+	public static Set<String> getRecents(){
+		Set<String> list=new HashSet<>();
 		try
 		{
 			java.lang.Process process=Runtime.getRuntime().exec("sh");
-			OutputStream out=process.getOutputStream();
-			out.write("dumpsys activity r|grep \"* Recent #\"\n".getBytes());
-			out.flush();
-			out.write("exit\n".getBytes());
+			PrintWriter out=new PrintWriter(process.getOutputStream());
+			//out.write("dumpsys activity r|grep -e \"* Recent #\" -e baseIntent\n".getBytes());
+			out.println("dumpsys activity r|grep Activities");
+			out.println("exit");
 			out.flush();
 			
 			BufferedReader br=new BufferedReader(new InputStreamReader(process.getInputStream()));
 			String line=null;
 			while((line=br.readLine())!=null){
-				line=line.trim();
-				if(line.startsWith("* Recent #")){
+				int start=line.indexOf("[")+1;
+				int end=line.lastIndexOf("]");
+				if(start==end)continue;
+				line=line.substring(start,end);
+				for(String item:line.split(",")){
+					item=item.trim().split(" ")[2];
+					list.add(item.substring(0,item.indexOf("/")));
+				}
+				
+				/*if(line.startsWith("* Recent #")){
 					for(String item:line.substring(line.indexOf("{")+1,line.length()-1).split(" ")){
 						if(item.charAt(0)=='A'){
 							int index=item.indexOf(":");
@@ -223,7 +232,13 @@ public class Shell
 							list.add(item.substring(2));
 						}
 					}
+				}else{
+					for(String item:line.substring(line.indexOf("{")+1,line.indexOf("}")-1).split(" ")){
+						if(item.startsWith("cmp=")){
+							list.add(item.substring(4,item.indexOf("/")));
+						}
 					}
+				}*/
 
 			}
 			br.close();
@@ -232,8 +247,10 @@ public class Shell
 		catch (Exception e)
 		{
 			System.out.println(e.getMessage());
+			for(StackTraceElement ee:e.getStackTrace())
+			System.out.println(ee.toString());
 		}
-		System.out.println("当前 Recents:");
+		System.out.print("当前 Recents:");
 		System.out.println(list.toString());
 		return list;
 	}
@@ -280,21 +297,12 @@ public class Shell
 	public static void kill(String packageName){
 		try
 		{
+			if(exec==null){
 			java.lang.Process process=Runtime.getRuntime().exec("sh");
-			OutputStream out=process.getOutputStream();
-			out.write(("am force-stop "+packageName+"\n").getBytes());
-			out.flush();
-			out.write("exit\n".getBytes());
-			out.flush();
-			InputStream i=process.getInputStream();
-			int len=-1;
-			byte[] buff=new byte[128];
-			StringBuilder sb=new StringBuilder();
-			while((len=i.read(buff))!=-1){
-				sb.append(new String(buff,0,len));
+			exec=new PrintWriter(process.getOutputStream());
 			}
-			System.out.println(sb.toString());
-			process.destroy();
+			exec.println("am kill "+packageName);
+			exec.flush();
 			System.out.println("kill "+packageName);
 		}
 		catch (Exception e)
@@ -302,11 +310,11 @@ public class Shell
 			System.out.println(e.getMessage());
 		}
 	}
-	public static List<String> getBlackList(){
-		List<String> list=new ArrayList<>();
+	public static Set<String> getBlackList(){
+		Set<String> list=new HashSet<>();
 		try
 		{
-			FileReader fr=new FileReader("/sdcard/forcestop");
+			FileReader fr=new FileReader("/data/data/com.moe.shell/files/forcestop");
 			BufferedReader br=new BufferedReader(fr);
 			String line=null;
 			while((line=br.readLine())!=null){

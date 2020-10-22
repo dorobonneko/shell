@@ -1,11 +1,18 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     
     <item
-        android:id="@+id/background"
-        android:title="后台检查"/>
+        android:id="@+id/root"
+        android:title="root启动服务"/>
 	<item
-		android:id="@+id/autoboot"
-		android:title="自启管理"/>
+		android:id="@+id/shell"
+		android:title="执行命令"/>
+	<item
+		android:id="@+id/showSystem"
+		android:title="显示系统应用"/>
+	<item
+		android:id="@+id/showApk"
+		android:visible="false"
+		android:title="仅显示第三方应用"/>
 	<item
 		android:id="@+id/setting"
 		android:title="设置"/>
