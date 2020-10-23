@@ -160,12 +160,17 @@ ListView.OnItemLongClickListener
 		//}
 	}
 	List<PackageInfo> getApks(boolean system){
-		List<PackageInfo> list=getPackageManager().getInstalledPackages(PackageManager.MATCH_ALL);
-		if(system)
-			return list;
+		List<PackageInfo> list=getPackageManager().getInstalledPackages(PackageManager.MATCH_ALL|PackageManager.GET_SERVICES);
 		Iterator<PackageInfo> i=list.iterator();
 		while(i.hasNext()){
-			if((i.next().applicationInfo.flags&ApplicationInfo.FLAG_SYSTEM)==ApplicationInfo.FLAG_SYSTEM)
+			PackageInfo info=i.next();
+			if(!system){
+			if((info.applicationInfo.flags&ApplicationInfo.FLAG_SYSTEM)==ApplicationInfo.FLAG_SYSTEM){
+				i.remove();
+				continue;
+				}
+			}
+			if(info.services==null||info.services.length==0)
 				i.remove();
 		}
 		return list;
