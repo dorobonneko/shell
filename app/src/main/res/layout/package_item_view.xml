@@ -37,7 +37,8 @@
 		<LinearLayout
 			android:orientation="vertical"
 			android:layout_width="match_parent"
-			android:layout_height="wrap_content">
+			android:layout_height="wrap_content"
+			android:layout_weight="1.0">
 
 			<TextView
 				android:layout_width="wrap_content"
@@ -53,6 +54,14 @@
 				android:textSize="13sp"/>
 
 		</LinearLayout>
+
+		<ImageView
+			android:visibility="gone"
+			android:layout_width="32dp"
+			android:layout_height="32dp"
+			android:src="@drawable/ac_unit"
+			android:id="@+id/radical"
+			android:scaleType="centerInside"/>
 
 	</LinearLayout>
 

@@ -187,10 +187,22 @@ public class Shell
 	static void kill(){
 			try{
 				Set<String> recents=getRecents();
-			for(String packageName:getBlackList()){
+				Map<String,Map<String,String>> blacklist=getBlackList();
+			for(String packageName:blacklist.keySet()){
 				if(whitelist.contains(packageName)||recents.contains(packageName))
 					continue;
-					kill(packageName);
+					Map<String,String> property=blacklist.get(packageName);
+					if(property==null)
+					kill(packageName,false);
+					else{
+						String radical=property.get("radical");
+						if(radical==null)
+							kill(packageName,false);
+							else if(radical.equals("true"))
+								kill(packageName,true);
+								else
+								kill(packageName,false);
+					}
 			}
 			}catch(Exception e){
 				System.out.println(e.getMessage());
@@ -294,13 +306,16 @@ public class Shell
 		System.out.println(list.toString());
 		return list;
 	}*/
-	public static void kill(String packageName){
+	public static void kill(String packageName,boolean radical){
 		try
 		{
 			if(exec==null){
 			java.lang.Process process=Runtime.getRuntime().exec("sh");
 			exec=new PrintWriter(process.getOutputStream());
 			}
+			if(radical)
+				exec.println("am force-stop "+packageName);
+				else
 			exec.println("am kill "+packageName);
 			exec.flush();
 			System.out.println("kill "+packageName);
@@ -310,8 +325,8 @@ public class Shell
 			System.out.println(e.getMessage());
 		}
 	}
-	public static Set<String> getBlackList(){
-		Set<String> list=new HashSet<>();
+	public static Map<String,Map<String,String>> getBlackList(){
+		Map<String,Map<String,String>> list=new HashMap<>();
 		try
 		{
 			FileReader fr=new FileReader("/data/data/com.moe.shell/files/forcestop");
@@ -319,8 +334,19 @@ public class Shell
 			String line=null;
 			while((line=br.readLine())!=null){
 				line=line.trim();
-				if(!line.isEmpty())
-					list.add(line);
+				if(!line.isEmpty()){
+					int index=line.indexOf(":");
+					if(index==-1)
+					list.put(line,null);
+					else{
+						Map<String,String> property=new HashMap<>();
+						list.put(line.substring(0,index),property);
+						for(String item:line.substring(index+1).split(",")){
+							index=item.indexOf("=");
+							property.put(item.substring(0,index),item.substring(index+1));
+						}
+					}
+					}
 			}
 		}
 		catch (Exception e)

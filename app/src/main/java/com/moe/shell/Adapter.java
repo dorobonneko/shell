@@ -8,8 +8,8 @@ public class Adapter extends BaseAdapter
 {
 	private PackageManager pm;
 	private List<PackageInfo> list;
-	private Set<String> blacklist;
-	public Adapter(PackageManager pm,List<PackageInfo> list,Set<String> blacklist){
+	private Map<String,Map<String,String>> blacklist;
+	public Adapter(PackageManager pm,List<PackageInfo> list,Map<String,Map<String,String>> blacklist){
 		this.pm=pm;
 		this.list=list;
 		this.blacklist=blacklist;
@@ -48,18 +48,27 @@ public class Adapter extends BaseAdapter
 		vh.title.setText(info.applicationInfo.loadLabel(pm));
 		vh.icon.setImageDrawable(info.applicationInfo.loadIcon(pm));
 		vh.summary.setText(info.packageName);
-		vh.check.setChecked(blacklist.contains(info.packageName));
+		vh.check.setChecked(blacklist.containsKey(info.packageName));
+		boolean radical=false;
+		Map<String,String> property=blacklist.get(info.packageName);
+		if(property!=null){
+			String radical_=property.get("radical");
+			if(radical_!=null)
+				radical=radical_.equals("true");
+		}
+		vh.radical.setVisibility(radical?View.VISIBLE:View.GONE);
 		return p2;
 	}
 	class ViewHolder{
 		TextView title,summary;
-		ImageView icon;
+		ImageView icon,radical;
 		CheckBox check;
 		ViewHolder(View v){
 			title=v.findViewById(R.id.title);
 			summary=v.findViewById(R.id.summary);
 			icon=v.findViewById(R.id.icon);
 			check=v.findViewById(R.id.checked);
+			radical=v.findViewById(R.id.radical);
 		}
 	}
 }

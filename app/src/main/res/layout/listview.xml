@@ -1,0 +1,24 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical">
+    	<FrameLayout
+			android:layout_width="match_parent"
+			android:layout_height="?android:attr/actionBarSize">
+			<Toolbar
+				android:layout_marginStart="8dp"
+				android:layout_marginEnd="8dp"
+				android:layout_width="match_parent"
+				android:layout_height="match_parent"
+				android:id="@+id/toolbar"/>
+			<SearchView
+				android:background="#fff"
+				android:layout_width="match_parent"
+				android:layout_height="match_parent"
+				android:id="@+id/search"/>
+		</FrameLayout>
+		<ListView
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
+			android:id="@+id/listview"/>
+</LinearLayout>
