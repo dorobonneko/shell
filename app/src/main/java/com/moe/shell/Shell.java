@@ -10,7 +10,7 @@ import java.nio.*;
 public class Shell
 {
 	private static List<String> whitelist=new ArrayList<>();
-	private static Pattern processPattern=Pattern.compile("^\\*APP\\*\\sUID\\s(\\d*?)\\sProcessRecord\\{.*?\\s\\d*?:([\\.a-zA-Z0-9:].*?)/.*?\\}$");
+	//private static Pattern processPattern=Pattern.compile("^\\*APP\\*\\sUID\\s(\\d*?)\\sProcessRecord\\{.*?\\s\\d*?:([\\.a-zA-Z0-9:].*?)/.*?\\}$");
 	private static PrintWriter exec;
 	public static void main(String[] args){
 		if(android.os.Process.myUid()>2000){
@@ -189,8 +189,12 @@ public class Shell
 				Set<String> recents=getRecents();
 				Map<String,Map<String,String>> blacklist=getBlackList();
 			for(String packageName:blacklist.keySet()){
-				if(whitelist.contains(packageName)||recents.contains(packageName))
+				if(whitelist.contains(packageName))
 					continue;
+					if(recents.contains(packageName)){
+						standby(packageName);
+					continue;
+					}
 					Map<String,String> property=blacklist.get(packageName);
 					if(property==null)
 					kill(packageName,false);
@@ -317,8 +321,26 @@ public class Shell
 				exec.println("am force-stop "+packageName);
 				else
 			exec.println("am kill "+packageName);
+			//exec.println("dumpsys deviceidle whilelist -"+packageName);//移出未优化白名单
+			//exec.println("am set-inactive "+packageName+" true");//使app进入standby模式
 			exec.flush();
 			System.out.println("kill "+packageName);
+		}
+		catch (Exception e)
+		{
+			System.out.println(e.getMessage());
+		}
+	}
+	public static void standby(String packageName){
+		try
+		{
+			if(exec==null){
+				java.lang.Process process=Runtime.getRuntime().exec("sh");
+				exec=new PrintWriter(process.getOutputStream());
+			}
+			exec.println("dumpsys deviceidle whilelist -"+packageName);//移出未优化白名单
+			exec.println("am set-inactive "+packageName+" true");//使app进入standby模式
+			exec.flush();
 		}
 		catch (Exception e)
 		{
