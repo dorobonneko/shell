@@ -1,9 +1,9 @@
 package com.moe.shell;
-import android.widget.*;
-import android.view.*;
 import android.content.pm.*;
+import android.view.*;
+import android.widget.*;
 import java.util.*;
-
+import android.app.ActivityManager;
 public class Adapter extends BaseAdapter
 {
 	private PackageManager pm;

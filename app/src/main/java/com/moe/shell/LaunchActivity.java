@@ -13,6 +13,8 @@ import java.util.zip.*;
 import android.widget.SearchView.*;
 import android.animation.*;
 import android.view.ContextMenu.*;
+import java.util.stream.Collectors;
+import java.util.function.Predicate;
 
 public class LaunchActivity extends Activity implements ListView.OnItemClickListener,
 SearchView.OnCloseListener,
@@ -25,11 +27,17 @@ ListView.OnItemLongClickListener
 	private SearchView searchView;
 	private List<PackageInfo> data;
 	private int id;
+	private java.lang.Process p;
+	private PrintWriter pw;
 	@Override
 	protected void onCreate(Bundle savedInstanceState)
 	{
 		// TODO: Implement this method
 		super.onCreate(savedInstanceState);
+		try{
+		 p=Runtime.getRuntime().exec("sh");
+		 pw=new PrintWriter(p.getOutputStream());
+		}catch(Exception e){}
 		setContentView(R.layout.listview);
 		setActionBar((Toolbar)findViewById(R.id.toolbar));
 		StrictMode.allowThreadDiskReads();
@@ -121,30 +129,20 @@ ListView.OnItemLongClickListener
 				o.flush();
 				o.close();
 				i.close();
-				java.lang.Process p=Runtime.getRuntime().exec("sh");
-				PrintWriter pw=new PrintWriter(p.getOutputStream());
 				pw.println("chmod 777 "+exe.getAbsolutePath());
-				pw.println("exit");
 				pw.flush();
-				try
-				{
-					p.waitFor();
-				}
-				catch (InterruptedException e)
-				{}
-				p.destroy();
 			}
 			catch (IOException e)
 			{}
 		//}
-		//File stop=new File(getFilesDir(),"moestop");
+		File stop=new File(getFilesDir(),"moestop");
 		//if(!stop.exists()){
 			try
 			{
 				ZipFile zf=new ZipFile(getPackageResourcePath());
 				InputStream i=zf.getInputStream(zf.getEntry("classes.dex"));
 				byte[] buff=new byte[128];
-				OutputStream o=openFileOutput("moestop",MODE_WORLD_READABLE);
+				OutputStream o=openFileOutput("moestop",MODE_PRIVATE);
 				int len=-1;
 				while((len=i.read(buff))!=-1){
 					o.write(buff,0,len);
@@ -153,27 +151,29 @@ ListView.OnItemLongClickListener
 				o.close();
 				i.close();
 				zf.close();
-				//Runtime.getRuntime().exec("chmod 777 "+exe.getAbsolutePath()).destroy();
+				pw.println("chmod 777 "+stop.getAbsolutePath());
+				pw.flush();
 			}
 			catch (IOException e)
 			{}
 		//}
 	}
-	List<PackageInfo> getApks(boolean system){
-		List<PackageInfo> list=getPackageManager().getInstalledPackages(PackageManager.MATCH_ALL|PackageManager.GET_SERVICES);
-		Iterator<PackageInfo> i=list.iterator();
-		while(i.hasNext()){
-			PackageInfo info=i.next();
-			if(!system){
-			if((info.applicationInfo.flags&ApplicationInfo.FLAG_SYSTEM)==ApplicationInfo.FLAG_SYSTEM){
-				i.remove();
-				continue;
+	List<PackageInfo> getApks(final boolean system){
+		return getPackageManager().getInstalledPackages(PackageManager.MATCH_ALL | PackageManager.GET_SERVICES).stream().filter(new Predicate<PackageInfo>(){
+
+				@Override
+				public boolean test(PackageInfo info)
+				{
+					if(!system){
+						if((info.applicationInfo.flags&ApplicationInfo.FLAG_SYSTEM)==ApplicationInfo.FLAG_SYSTEM){
+							return false;
+						}
+					}
+					if(info.services==null||info.services.length==0)
+						return false;
+					return true;
 				}
-			}
-			if(info.services==null||info.services.length==0)
-				i.remove();
-		}
-		return list;
+			}).collect(Collectors.toList());
 	}
 	@Override
 	protected void onResume()
@@ -280,9 +280,49 @@ ListView.OnItemLongClickListener
 				a.setDuration(150);
 				a.start();
 			break;
+			case R.id.about:
+				new AlertDialog.Builder(this).setTitle("关于").setMessage(R.string.about).show();
+			case R.id.shizuku:
+				/*if(checkCallingOrSelfPermission(ShizukuApiConstants.PERMISSION)==PackageManager.PERMISSION_DENIED){
+					requestPermissions(new String[]{ShizukuApiConstants.PERMISSION},3338);
+				}else onRequestPermissionsResult(3338,new String[]{ShizukuApiConstants.PERMISSION},new int[]{PackageManager.PERMISSION_GRANTED});
+				*/break;
 		}
 		return true;
 	}
+
+	/*@Override
+	public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults)
+	{
+		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+		if(requestCode==3338&&grantResults[0]==PackageManager.PERMISSION_GRANTED){
+			try
+			{
+				if (ShizukuService.getUid() <= 2000)
+				{
+					Toast.makeText(this,"Shizuku权限不足",Toast.LENGTH_SHORT).show();
+				}else{
+					java.lang.Process p=ShizukuService.newProcess(new String[]{"sh"},null,null);
+					PrintWriter pw=new PrintWriter(p.getOutputStream());
+					pw.println("sh /data/data/com.moe.shell/files/exe.sh");
+					pw.println("sleep 1s");
+					pw.println("exit");
+					pw.flush();
+					try
+					{
+						p.waitFor();
+					}
+					catch (InterruptedException e)
+					{}
+					p.destroy();
+					onResume();
+				}
+			}
+			catch (RemoteException e)
+			{}
+		}
+	}*/
+	
 	@Override
 	public void onItemClick(AdapterView l, View v, int position, long id)
 	{
@@ -357,7 +397,9 @@ ListView.OnItemLongClickListener
 	void save(){
 		try
 		{
-			PrintWriter pw=new PrintWriter(openFileOutput("forcestop",MODE_WORLD_READABLE));
+			PrintWriter pw=new PrintWriter(openFileOutput("forcestop",MODE_PRIVATE));
+			LaunchActivity.this.pw.println("chmod 644 "+new File(getFilesDir(),"forcestop").getAbsolutePath());
+			LaunchActivity.this.pw.flush();
 			Iterator<Map.Entry<String,Map<String,String>>> i=blacklist.entrySet().iterator();
 			while(i.hasNext()){
 				Map.Entry<String,Map<String,String>> entry=i.next();
@@ -391,6 +433,17 @@ ListView.OnItemLongClickListener
 			onClose();
 			else
 		super.onBackPressed();
+	}
+
+	@Override
+	protected void onDestroy()
+	{
+		// TODO: Implement this method
+		super.onDestroy();
+		pw.println("exit");
+		pw.flush();
+		pw.close();
+		p.destroy();
 	}
 	
 }
