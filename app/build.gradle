@@ -5,7 +5,7 @@ android {
     buildToolsVersion "21.1.0"
 
     defaultConfig {
-        applicationId "com.moe.shell"
+        applicationId "com.moe.bgcheck"
         minSdkVersion 23
         targetSdkVersion 30
         versionCode 1

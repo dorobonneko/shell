@@ -1,4 +1,4 @@
-package com.moe.shell;
+package com.moe.bgcheck;
 import android.content.pm.*;
 import android.view.*;
 import android.widget.*;

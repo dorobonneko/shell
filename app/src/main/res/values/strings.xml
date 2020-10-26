@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="app_name">Shell</string>
+    <string name="app_name">后台检查</string>
     <string name="hello_world">Hello world!</string>
 	<string name="about">加入黑名单的应用如果不在最近任务里，最迟1分钟后会停止运行。如果应用有前台服务，则需要激进模式才能停止。如果黑名单应用在最近任务里则尝试让应用进入standby模式（停止包括网络访问等活动）。</string>
 </resources>

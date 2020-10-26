@@ -1,4 +1,4 @@
-package com.moe.shell;
+package com.moe.bgcheck;
 import android.app.*;
 import android.os.*;
 import android.view.*;
@@ -15,6 +15,7 @@ import android.animation.*;
 import android.view.ContextMenu.*;
 import java.util.stream.Collectors;
 import java.util.function.Predicate;
+import com.moe.shell.Shell;
 
 public class LaunchActivity extends Activity implements ListView.OnItemClickListener,
 SearchView.OnCloseListener,
@@ -25,24 +26,25 @@ ListView.OnItemLongClickListener
 	private Menu mMenu;
 	private ListView mListView;
 	private SearchView searchView;
-	private List<PackageInfo> data;
+	private List<PackageInfo> data,mList;
 	private int id;
 	private java.lang.Process p;
 	private PrintWriter pw;
+	private Adapter mAdapter;
 	@Override
 	protected void onCreate(Bundle savedInstanceState)
 	{
-		// TODO: Implement this method
+		StrictMode.allowThreadDiskReads();
+        StrictMode.allowThreadDiskWrites();
+        try{
+            p=Runtime.getRuntime().exec("sh");
+            pw=new PrintWriter(p.getOutputStream());
+        }catch(Exception e){}
+		init();
 		super.onCreate(savedInstanceState);
-		try{
-		 p=Runtime.getRuntime().exec("sh");
-		 pw=new PrintWriter(p.getOutputStream());
-		}catch(Exception e){}
 		setContentView(R.layout.listview);
 		setActionBar((Toolbar)findViewById(R.id.toolbar));
-		StrictMode.allowThreadDiskReads();
-		StrictMode.allowThreadDiskWrites();
-		init();
+		
 		searchView=findViewById(R.id.search);
 		searchView.setOnCloseListener(this);
 		searchView.setOnQueryTextListener(this);
@@ -52,7 +54,10 @@ ListView.OnItemLongClickListener
 		mListView.setOnItemClickListener(this);
 		mListView.setOnItemLongClickListener(this);
 		registerForContextMenu(mListView);
-		mListView.setAdapter(new Adapter(getPackageManager(),data=getApks(false),blacklist=Shell.getBlackList()));
+		data=getPackageManager().getInstalledPackages(PackageManager.MATCH_ALL | PackageManager.GET_SERVICES);
+		mListView.setAdapter(mAdapter=new Adapter(getPackageManager(),mList=new ArrayList<>(),blacklist=Shell.getBlackList()));
+		mList.addAll(getApks(false));
+		mAdapter.notifyDataSetChanged();
 	}
 	
 	@Override
@@ -63,16 +68,23 @@ ListView.OnItemLongClickListener
 	}
 
 	@Override
-	public boolean onQueryTextChange(String p1)
+	public boolean onQueryTextChange(final String p1)
 	{
-		ArrayList<PackageInfo> list=new ArrayList<>();
-		for(int i=0;i<data.size();i++){
-			PackageInfo info=data.get(i);
-			if(info.applicationInfo.loadLabel(getPackageManager()).toString().contains(p1)||info.packageName.contains(p1))
-				list.add(info);
-		}
-		mListView.setAdapter(new Adapter(getPackageManager(),list,blacklist));
-		return false;
+		
+		ArrayList<PackageInfo> list=getApks(!mMenu.findItem(R.id.showSystem).isVisible()).stream().filter(new Predicate<PackageInfo>(){
+
+				@Override
+				public boolean test(PackageInfo info)
+				{
+					if(info.applicationInfo.loadLabel(getPackageManager()).toString().contains(p1)||info.packageName.contains(p1))
+						return true;
+					return false;
+				}
+			}).collect(Collectors.toList());
+		mList.clear();
+		mList.addAll(list);
+		mAdapter.notifyDataSetChanged();
+			return false;
 	}
 
 	@Override
@@ -91,8 +103,10 @@ ListView.OnItemLongClickListener
 				public void onAnimationEnd(Animator p1)
 				{
 					searchView.setVisibility(View.INVISIBLE);
-					mListView.setAdapter(new Adapter(getPackageManager(),data,blacklist));
-				}
+					mList.clear();
+					mList.addAll(getApks(!mMenu.findItem(R.id.showSystem).isVisible()));
+					mAdapter.notifyDataSetChanged();
+					}
 
 				@Override
 				public void onAnimationCancel(Animator p1)
@@ -106,7 +120,7 @@ ListView.OnItemLongClickListener
 					// TODO: Implement this method
 				}
 			});
-		a.setDuration(300);
+		a.setDuration(200);
 		a.start();
 		return true;
 	}
@@ -159,7 +173,7 @@ ListView.OnItemLongClickListener
 		//}
 	}
 	List<PackageInfo> getApks(final boolean system){
-		return getPackageManager().getInstalledPackages(PackageManager.MATCH_ALL | PackageManager.GET_SERVICES).stream().filter(new Predicate<PackageInfo>(){
+		return data.stream().filter(new Predicate<PackageInfo>(){
 
 				@Override
 				public boolean test(PackageInfo info)
@@ -219,12 +233,17 @@ ListView.OnItemLongClickListener
 				startActivity(new Intent(this,ShellActivity.class));
 				break;
 			case R.id.showSystem:
-				mListView.setAdapter(new Adapter(getPackageManager(),data=getApks(true),blacklist));
+				mList.clear();
+				mList.addAll(getApks(true));
+				mAdapter.notifyDataSetChanged();
 				item.setVisible(false);
 				mMenu.findItem(R.id.showApk).setVisible(true);
 				break;
 			case R.id.showApk:
-				mListView.setAdapter(new Adapter(getPackageManager(),data=getApks(false),blacklist));
+				mList.clear();
+				mList.addAll(getApks(false));
+				mAdapter.notifyDataSetChanged();
+				
 				item.setVisible(false);
 				mMenu.findItem(R.id.showSystem).setVisible(true);
 				break;
@@ -277,7 +296,7 @@ ListView.OnItemLongClickListener
 							// TODO: Implement this method
 						}
 					});
-				a.setDuration(150);
+				a.setDuration(500);
 				a.start();
 			break;
 			case R.id.about:

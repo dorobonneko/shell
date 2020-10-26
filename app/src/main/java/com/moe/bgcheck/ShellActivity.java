@@ -1,4 +1,4 @@
-package com.moe.shell;
+package com.moe.bgcheck;
 
 import android.app.*;
 import android.os.*;
