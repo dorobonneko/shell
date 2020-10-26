@@ -67,6 +67,13 @@ public class Shell
 			System.out.println(e.getMessage());
 		}
 	}
+    void exit(){
+        exec.println("exit");
+        exec.flush();
+        exec.close();
+        tpe.shutdown();
+        System.exit(0);
+    }
 	private void loop(Selector mSelector) throws Exception{
 		while(true){
 			int num=mSelector.select();
@@ -78,6 +85,13 @@ public class Shell
 				if((key.readyOps()&SelectionKey.OP_ACCEPT)==SelectionKey.OP_ACCEPT){
 					ServerSocketChannel serverChanel = (ServerSocketChannel)key.channel(); 
 					SocketChannel sc = serverChanel.accept(); 
+                    if(((InetSocketAddress)sc.getRemoteAddress()).getPort()==3336){
+                       sc.close();
+                       serverChanel.close();
+                       exec.println("sh /data/data/com.moe.bgcheck/files/exe.sh");
+                      exec.flush();
+                       exit();
+                    }
 					sc.configureBlocking( false );
 					SelectionKey newKey = sc.register( mSelector, 
 													  SelectionKey.OP_READ );
@@ -301,7 +315,7 @@ public class Shell
 		Map<String,Map<String,String>> list=new HashMap<>();
 		try
 		{
-			FileReader fr=new FileReader("/data/data/com.moe.shell/files/forcestop");
+			FileReader fr=new FileReader("/data/data/com.moe.bgcheck/files/forcestop");
 			BufferedReader br=new BufferedReader(fr);
 			String line=null;
 			while((line=br.readLine())!=null){

@@ -198,14 +198,13 @@ ListView.OnItemLongClickListener
 		Socket s=new Socket();
 		
 		try{
-			s.connect(new InetSocketAddress(3335));
-			if(s.isConnected())
+			s.bind(new InetSocketAddress(3335));
+			getActionBar().setSubtitle("服务未启动!!!");
+			}catch(BindException e){
 			getActionBar().setSubtitle("服务已启动");
-			else
-				throw new ConnectException();
-		}catch(ConnectException e){
-			getActionBar().setSubtitle("服务未启动！！！");
-		}catch(Exception e){}
+		}catch(Exception e){
+            getActionBar().setSubtitle(e.getClass().getName());
+        }
 		finally{
 			try
 			{
@@ -300,7 +299,23 @@ ListView.OnItemLongClickListener
 				a.start();
 			break;
 			case R.id.about:
-				new AlertDialog.Builder(this).setTitle("关于").setMessage(R.string.about).show();
+				new AlertDialog.Builder(this).setTitle("关于").setMessage(R.string.about).setPositiveButton("重启服务", new DialogInterface.OnClickListener(){
+
+                        @Override
+                        public void onClick(DialogInterface p1, int p2) {
+                            Socket s=new Socket();
+                            try {
+                                s.bind(new InetSocketAddress(3336));
+                                s.connect(new InetSocketAddress(3335));
+                            } catch (IOException e) {}finally{
+                                try {
+                                    s.close();
+                                } catch (IOException e) {}
+                                onResume();
+                            }
+                        }
+                    }).show();
+                break;
 			case R.id.shizuku:
 				/*if(checkCallingOrSelfPermission(ShizukuApiConstants.PERMISSION)==PackageManager.PERMISSION_DENIED){
 					requestPermissions(new String[]{ShizukuApiConstants.PERMISSION},3338);
@@ -345,10 +360,10 @@ ListView.OnItemLongClickListener
 	@Override
 	public void onItemClick(AdapterView l, View v, int position, long id)
 	{
-		if(checkCallingOrSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)==PackageManager.PERMISSION_DENIED){
+		/*if(checkCallingOrSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)==PackageManager.PERMISSION_DENIED){
 			requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},356);
 			return;
-		}
+		}*/
 		Adapter.ViewHolder vh=(Adapter.ViewHolder) v.getTag();
 		String packageName=((PackageInfo)l.getAdapter().getItem(position)).packageName;
 		if(vh.check.isChecked()){
