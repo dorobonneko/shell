@@ -3,7 +3,6 @@ apply plugin: 'com.android.application'
 android {
     compileSdkVersion 21
     buildToolsVersion "21.1.0"
-
     defaultConfig {
         applicationId "com.moe.bgcheck"
         minSdkVersion 27
@@ -16,9 +15,16 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+
+    }
+    compileOptions {
+        sourceCompatibility 1.8
+        targetCompatibility 1.8
     }
 }
+
 dependencies {
-	//implementation 'moe.shizuku.privilege:api:+'
+    compile 'com.jaredrummler:android-processes:+'
+    //implementation 'moe.shizuku.privilege:api:+'
 	 compile fileTree(dir: 'libs', include: ['*.jar'])
 }

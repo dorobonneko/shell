@@ -4,16 +4,27 @@ import android.view.*;
 import android.widget.*;
 import java.util.*;
 import android.app.ActivityManager;
+import android.content.Context;
+import android.app.usage.UsageStatsManager;
+import com.moe.bgcheck.utils.AppProcess;
+import com.moe.bgcheck.utils.ProcessUtils;
 public class Adapter extends BaseAdapter
 {
 	private PackageManager pm;
 	private List<PackageInfo> list;
+    private UsageStatsManager usm;
 	private Map<String,Map<String,String>> blacklist;
-	public Adapter(PackageManager pm,List<PackageInfo> list,Map<String,Map<String,String>> blacklist){
-		this.pm=pm;
+    private Map<String,AppProcess> running;
+	public Adapter(Context context,List<PackageInfo> list,Map<String,Map<String,String>> blacklist,Map<String,AppProcess> running){
+		this.pm=context.getPackageManager();
+        usm=(UsageStatsManager) context.getSystemService(context.USAGE_STATS_SERVICE);
 		this.list=list;
 		this.blacklist=blacklist;
+        this.running=running;
 	}
+
+  
+    
 	@Override
 	public int getCount()
 	{
@@ -57,10 +68,28 @@ public class Adapter extends BaseAdapter
 				radical=radical_.equals("true");
 		}
 		vh.radical.setVisibility(radical?View.VISIBLE:View.GONE);
+        vh.idle.setVisibility(usm.isAppInactive(info.packageName)?View.VISIBLE:View.GONE);
+        AppProcess process=running.get(info.packageName);
+        if(process!=null)
+        {
+            vh.fore.setVisibility(process.isForeground()?View.VISIBLE:View.GONE);
+             if(!process.isRunning())
+                vh.service.setVisibility(View.GONE);
+                else{
+                    AppProcess.Process[] processes=process.process;
+                    AppProcess.Service[] services=process.services;
+                vh.service.setVisibility(View.VISIBLE);
+                vh.service.setText(processes.length+"个进程"+services.length+"个服务");
+                }
+                
+        }else{
+            vh.fore.setVisibility(View.GONE);
+            vh.service.setVisibility(View.GONE);
+        }
 		return p2;
 	}
 	class ViewHolder{
-		TextView title,summary;
+		TextView title,summary,idle,fore,service;
 		ImageView icon,radical;
 		CheckBox check;
 		ViewHolder(View v){
@@ -69,6 +98,9 @@ public class Adapter extends BaseAdapter
 			icon=v.findViewById(R.id.icon);
 			check=v.findViewById(R.id.checked);
 			radical=v.findViewById(R.id.radical);
+            idle=v.findViewById(R.id.idle);
+            fore=v.findViewById(R.id.foreground);
+            service=v.findViewById(R.id.service);
 		}
 	}
 }

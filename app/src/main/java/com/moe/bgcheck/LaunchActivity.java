@@ -16,6 +16,13 @@ import android.view.ContextMenu.*;
 import java.util.stream.Collectors;
 import java.util.function.Predicate;
 import com.moe.shell.Shell;
+import com.jaredrummler.android.processes.models.AndroidAppProcess;
+import android.app.job.JobScheduler;
+import com.jaredrummler.android.processes.AndroidProcesses;
+import com.jaredrummler.android.processes.models.AndroidProcess;
+import android.app.usage.UsageStatsManager;
+import com.moe.bgcheck.utils.AppProcess;
+import com.moe.bgcheck.utils.ProcessUtils;
 
 public class LaunchActivity extends Activity implements ListView.OnItemClickListener,
 SearchView.OnCloseListener,
@@ -31,6 +38,9 @@ ListView.OnItemLongClickListener
 	private java.lang.Process p;
 	private PrintWriter pw;
 	private Adapter mAdapter;
+    private Timer mTimer;
+    private UsageStatsManager usm;
+    private Map<String,AppProcess> running;
 	@Override
 	protected void onCreate(Bundle savedInstanceState)
 	{
@@ -42,9 +52,9 @@ ListView.OnItemLongClickListener
         }catch(Exception e){}
 		init();
 		super.onCreate(savedInstanceState);
+        usm=(UsageStatsManager) getSystemService(USAGE_STATS_SERVICE);
 		setContentView(R.layout.listview);
 		setActionBar((Toolbar)findViewById(R.id.toolbar));
-		
 		searchView=findViewById(R.id.search);
 		searchView.setOnCloseListener(this);
 		searchView.setOnQueryTextListener(this);
@@ -55,9 +65,22 @@ ListView.OnItemLongClickListener
 		mListView.setOnItemLongClickListener(this);
 		registerForContextMenu(mListView);
 		data=getPackageManager().getInstalledPackages(PackageManager.MATCH_ALL | PackageManager.GET_SERVICES);
-		mListView.setAdapter(mAdapter=new Adapter(getPackageManager(),mList=new ArrayList<>(),blacklist=Shell.getBlackList()));
+		mListView.setAdapter(mAdapter=new Adapter(getApplicationContext(),mList=new ArrayList<>(),blacklist=Shell.getBlackList(),running=new HashMap<>()));
 		mList.addAll(getApks(false));
 		mAdapter.notifyDataSetChanged();
+       mTimer=new Timer();
+    mTimer.schedule(new TimerTask(){
+        public void run(){
+            final Map<String,AppProcess> map=ProcessUtils.getProcess(mList);
+            runOnUiThread(new Runnable(){
+                public void run(){
+                    running.clear();
+                    running.putAll(map);
+                    mAdapter.notifyDataSetChanged();
+                }
+            });
+        }
+    },1000,5000);
 	}
 	
 	@Override
@@ -247,11 +270,13 @@ ListView.OnItemLongClickListener
 				mMenu.findItem(R.id.showSystem).setVisible(true);
 				break;
 			case R.id.root:
+                new Thread(){
+                    public void run(){
 				try{
 					java.lang.Process p=Runtime.getRuntime().exec("su");
 					PrintWriter pw=new PrintWriter(p.getOutputStream());
-					pw.println("sh /data/data/com.moe.shell/files/exe.sh");
-					pw.println("sleep 1s");
+					pw.println("sh /data/data/com.moe.bgcheck/files/exe.sh");
+					//pw.println("sleep 1s");
 					pw.println("exit");
 					pw.flush();
 					try
@@ -260,9 +285,17 @@ ListView.OnItemLongClickListener
 					}
 					catch (InterruptedException e)
 					{}
+                    pw.close();
 					p.destroy();
-					onResume();
+                    getWindow().getDecorView().postDelayed(new Runnable(){
+
+                            @Override
+                            public void run() {
+                                onResume();
+                            }
+                        }, 1000);
 				}catch(Exception e){}
+                }}.start();
 				break;
 			case R.id.search:
 				Animator a=ObjectAnimator.ofFloat(searchView,"Alpha",0,1);
@@ -303,16 +336,28 @@ ListView.OnItemLongClickListener
 
                         @Override
                         public void onClick(DialogInterface p1, int p2) {
+                            new Thread(){
+                                public void run(){
                             Socket s=new Socket();
                             try {
                                 s.bind(new InetSocketAddress(3336));
                                 s.connect(new InetSocketAddress(3335));
-                            } catch (IOException e) {}finally{
+                            } catch (IOException e) {
+                                Toast.makeText(getApplicationContext(),"重启失败",Toast.LENGTH_SHORT).show();
+                            }finally{
                                 try {
                                     s.close();
                                 } catch (IOException e) {}
-                                onResume();
-                            }
+                                getWindow().getDecorView().postDelayed(new Runnable(){
+
+                                        @Override
+                                        public void run() {
+                                            onResume();
+                                        }
+                                    }, 1000);
+                                }
+                                }}.start();
+                            
                         }
                     }).show();
                 break;
@@ -404,7 +449,7 @@ ListView.OnItemLongClickListener
 	@Override
 	public boolean onContextItemSelected(MenuItem item)
 	{
-		PackageInfo info=(PackageInfo) mListView.getAdapter().getItem(id);
+		final PackageInfo info=(PackageInfo) mListView.getAdapter().getItem(id);
 		Map<String,String> property=blacklist.get(info.packageName);
 		switch(item.getItemId()){
 			case R.id.radical:
@@ -417,13 +462,50 @@ ListView.OnItemLongClickListener
 					property.remove("radical");
 					
 				break;
+            case R.id.appstandby:
+                if(!usm.isAppInactive(info.packageName))
+                    new Thread(){
+                        public void run(){
+                            Socket s=new Socket();
+                            try{
+                                s.connect(new InetSocketAddress(3335));
+                                PrintWriter pw=new PrintWriter(s.getOutputStream());
+                                pw.write("am set-inactive ");
+                                pw.write(info.packageName);
+                                pw.write(" true");
+                                pw.println();
+                                pw.flush();
+                                pw.close();
+                                getWindow().getDecorView().postDelayed(new Runnable(){
+
+                                        @Override
+                                        public void run() {
+                                            mAdapter.notifyDataSetChanged();
+                                             }
+                                    },500);
+                            }catch(final Exception e){
+                                runOnUiThread(new Runnable(){
+
+                                        @Override
+                                        public void run() {
+                                            Toast.makeText(getApplicationContext(),"失败"+e.getMessage(),Toast.LENGTH_SHORT).show();
+                                        }
+                                    });
+                            }finally{
+                                try {
+                                    s.close();
+                                } catch (IOException e) {}
+                            }
+                        }
+                    }.start();
+                break;
 		}
 		if(property!=null){
 			if(property.isEmpty())
 				blacklist.put(info.packageName,null);
 		}
 		save();
-		((BaseAdapter)mListView.getAdapter()).notifyDataSetInvalidated();
+		((BaseAdapter)mListView.getAdapter()).notifyDataSetChanged();
 		return true;
 	}
 
@@ -479,5 +561,13 @@ ListView.OnItemLongClickListener
 		pw.close();
 		p.destroy();
 	}
-	
+	class TaskTimerTask extends TimerTask {
+
+        @Override
+        public void run() {
+            List<AndroidAppProcess> running=AndroidProcesses.getRunningAppProcesses();
+        }
+
+        
+    }
 }

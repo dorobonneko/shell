@@ -6,5 +6,8 @@
 	<item
 		android:id="@+id/cancel_radical"
 		android:title="取消激进"/>
+    <item
+        android:id="@+id/appstandby"
+        android:title="App Standby"/>
     
 </menu>

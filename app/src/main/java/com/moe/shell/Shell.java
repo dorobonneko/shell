@@ -29,6 +29,11 @@ public class Shell
 	
 	public Shell(){
 		try{
+            java.lang.Process process=Runtime.getRuntime().exec("sh");
+            exec=new PrintWriter(process.getOutputStream());
+            exec.println("pm grant com.moe.bgcheck android.permission.PACKAGE_USAGE_STATS");
+            exec.println("pm grant com.moe.bgcheck android.permission.DUMP");
+            exec.flush();
 			ServerSocketChannel ssc=ServerSocketChannel.open();
 			ssc.configureBlocking(false);
 			ssc.socket().bind(new InetSocketAddress(3335));
@@ -57,7 +62,9 @@ public class Shell
 						loop(mSelector);
 					}
 					catch (Exception e)
-					{}
+					{
+                        System.out.println(e.getMessage());
+                    }
 				}}.start();
 			System.out.println("启动成功");
 		}
@@ -90,6 +97,7 @@ public class Shell
                        serverChanel.close();
                        exec.println("sh /data/data/com.moe.bgcheck/files/exe.sh");
                       exec.flush();
+                      System.out.println("系统重启");
                        exit();
                     }
 					sc.configureBlocking( false );
@@ -277,10 +285,7 @@ public class Shell
 	public void kill(String packageName,boolean radical){
 		try
 		{
-			if(exec==null){
-			java.lang.Process process=Runtime.getRuntime().exec("sh");
-			exec=new PrintWriter(process.getOutputStream());
-			}
+			
 			if(radical)
 				exec.println("am force-stop "+packageName);
 				else
