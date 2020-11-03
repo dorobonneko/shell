@@ -14,6 +14,8 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.function.BinaryOperator;
 import java.util.function.Predicate;
+import java.util.Comparator;
+import java.util.Collections;
 
 public class ProcessUtils {
 
@@ -32,15 +34,10 @@ public class ProcessUtils {
                 @Override
                 public AppProcess apply(PackageInfo p1) {
                     if(p1==null)return null;
-                    return getProcess(p1.packageName);
-                }
-            }).filter(new Predicate<AppProcess>(){
-
-                @Override
-                public boolean test(AppProcess p1) {
-                    if(p1==null)
-                    return false;
-                    return true;
+                    long time=System.currentTimeMillis();
+                    AppProcess ap =getProcess(p1.packageName);
+                    time=System.currentTimeMillis()-time;
+                    return ap;
                 }
             }).collect(Collectors.toMap(new Function<AppProcess,String>(){
 

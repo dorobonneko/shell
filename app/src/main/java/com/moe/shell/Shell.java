@@ -1,21 +1,46 @@
 package com.moe.shell;
-import java.io.*;
-import java.util.*;
-import java.util.regex.*;
-import java.net.*;
-import java.util.concurrent.*;
-import java.nio.channels.*;
-import java.nio.*;
-import android.os.*;
-import java.lang.reflect.*;
 
-public class Shell
+import android.os.Looper;
+import android.os.RemoteException;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.net.ServerSocket;
+
+public class Shell implements Thread.UncaughtExceptionHandler 
 {
+
+   
+    
 	/*am set-standby-bucket packagename active|working_set|frequent|rare
 	*/
 	private PrintWriter exec;
 	private ThreadPoolExecutor tpe;
 	private ProcessBuilder mProcessBuilder;
+    private ServerSocket ssc;
 	public static void main(String[] args){
 		if(android.os.Process.myUid()>2000){
 			System.out.println("权限不足！");
@@ -26,17 +51,77 @@ public class Shell
 			Looper.loop();
 		}
 	}
-	
-	public Shell(){
-		try{
+    
+    public void reboot() {
+        try {
+            ssc.close();
+        } catch (IOException e) {}
+        exec.println("sh /data/data/com.moe.bgcheck/files/exe.sh");
+        exec.flush();
+        System.out.println("系统重启");
+    }
+
+    
+    public int getUid() {
+        return android.os.Process.myUid();
+    }
+
+    
+    public int getGid() {
+        return android.os.Process.myPid();
+    }
+
+    
+    public String exec(String cmd) {
+        try {
+           java.lang.Process p= mProcessBuilder.start();
+           p.getOutputStream().write(cmd.getBytes());
+           p.getOutputStream().write("\nexit\n".getBytes());
+           p.getOutputStream().flush();
+           InputStream in=p.getInputStream();
+           int len=-1;
+           byte[] buff=new byte[512];
+           StringBuilder sb=new StringBuilder();
+           while((len=in.read(buff))!=-1){
+               sb.append(new String(buff,0,len));
+           }
+           p.destroy();
+           return sb.toString();
+        } catch (IOException e) {}
+        return null;
+    }
+
+    
+    public int getPort() {
+        return 3335;
+    }
+
+    
+    public void exit() {
+        exec.println("exit");
+        exec.flush();
+        exec.close();
+        tpe.shutdown();
+        System.exit(0);
+    }
+
+    @Override
+    public void uncaughtException(Thread p1, Throwable p2) {
+        System.out.println(p2.getMessage());
+        for(StackTraceElement e:p2.getStackTrace())
+        System.out.println(e.toString());
+    }
+
+
+    
+	Shell(){
+       Thread.setDefaultUncaughtExceptionHandler(this);
+        try{
             java.lang.Process process=Runtime.getRuntime().exec("sh");
             exec=new PrintWriter(process.getOutputStream());
             exec.println("pm grant com.moe.bgcheck android.permission.PACKAGE_USAGE_STATS");
             exec.println("pm grant com.moe.bgcheck android.permission.DUMP");
             exec.flush();
-			ServerSocketChannel ssc=ServerSocketChannel.open();
-			ssc.configureBlocking(false);
-			ssc.socket().bind(new InetSocketAddress(3335));
 			ScheduledExecutorService service = Executors
 				.newSingleThreadScheduledExecutor();
 				tpe=new ThreadPoolExecutor(4,32,5,TimeUnit.SECONDS,new ArrayBlockingQueue<Runnable>(255));
@@ -48,23 +133,25 @@ public class Shell
 						kill();
 						//System.exit(0);
 					}
-				}, 1, 1, TimeUnit.MINUTES);
+				}, 1, 5, TimeUnit.MINUTES);
 			mProcessBuilder=new ProcessBuilder();
 			mProcessBuilder.directory(new File("/sdcard"));
 			mProcessBuilder.redirectErrorStream(true);
 			mProcessBuilder.command("sh");
-			final Selector mSelector=Selector.open();
-			ssc.register(mSelector,SelectionKey.OP_ACCEPT);
+			ssc=new ServerSocket();
+            ssc.bind(new InetSocketAddress(3335));
 			new Thread(){
 				public void run(){
-					try
-					{
-						loop(mSelector);
-					}
-					catch (Exception e)
-					{
-                        System.out.println(e.getMessage());
+					
+                    try {
+                        while(!ssc.isClosed()){
+                            Socket s=ssc.accept();
+                            new Thread(new Op_Read(s)).start();
+                        }
+                    } catch (Exception e) {
+                        uncaughtException(Thread.currentThread(),e);
                     }
+
 				}}.start();
 			System.out.println("启动成功");
 		}
@@ -74,57 +161,73 @@ public class Shell
 			System.out.println(e.getMessage());
 		}
 	}
-    void exit(){
-        exec.println("exit");
-        exec.flush();
-        exec.close();
-        tpe.shutdown();
-        System.exit(0);
-    }
-	private void loop(Selector mSelector) throws Exception{
-		while(true){
-			int num=mSelector.select();
-			if(num<1)continue;
-			Set<SelectionKey> keys=mSelector.selectedKeys();
-			Iterator<SelectionKey> iterator=keys.iterator();
-			while(iterator.hasNext()){
-				SelectionKey key=iterator.next();
-				if((key.readyOps()&SelectionKey.OP_ACCEPT)==SelectionKey.OP_ACCEPT){
-					ServerSocketChannel serverChanel = (ServerSocketChannel)key.channel(); 
-					SocketChannel sc = serverChanel.accept(); 
-                    if(((InetSocketAddress)sc.getRemoteAddress()).getPort()==3336){
-                       sc.close();
-                       serverChanel.close();
-                       exec.println("sh /data/data/com.moe.bgcheck/files/exe.sh");
-                      exec.flush();
-                      System.out.println("系统重启");
-                       exit();
-                    }
-					sc.configureBlocking( false );
-					SelectionKey newKey = sc.register( mSelector, 
-													  SelectionKey.OP_READ );
-					newKey.attach(mProcessBuilder.start());
-					//iterator.remove();
-				}else if((key.readyOps()&SelectionKey.OP_READ)==SelectionKey.OP_READ){
-					new Op_Read(key).run();
-					//iterator.remove(); 
-				}//op_write仅在socket缓冲区已满无法写入才使用
-			}
-			keys.clear();
-		}
-	}
-	
 	class Op_Read implements Runnable{
-		SelectionKey mSelectionKey;
-		Op_Read(SelectionKey mSelector){
+		Socket mSelectionKey;
+		Op_Read(Socket mSelector){
 			this.mSelectionKey=mSelector;
 		}
 
 		@Override
 		public void run()
 		{
-			SocketChannel sc = (SocketChannel)mSelectionKey.channel();
-			ByteBuffer echoBuffer=ByteBuffer.allocate(4096);
+            System.out.println("read");
+			Socket s=mSelectionKey;
+            try {
+                DataInputStream dis=new DataInputStream(s.getInputStream());
+               DataOutputStream dos=new DataOutputStream(s.getOutputStream());
+                while(s.isConnected()){
+                    String cmd=dis.readUTF();
+                    System.out.println(cmd);
+                    switch(cmd){
+                    case "exit":
+                        exit();
+                        break;
+                    case "getUid":
+                        dos.writeInt(getUid());
+                        break;
+                    case "getGid":
+                        dos.writeInt(getGid());
+                        break;
+                    case "reboot":
+                        reboot();
+                        break;
+                    case "getPort":
+                        dos.writeInt(getPort());
+                        break;
+                    case "exec":
+                        System.out.println("exec cmd");
+                        java.lang.Process p=mProcessBuilder.start();
+                        OutputStream cmdout=p.getOutputStream();
+                        cmdout.write(dis.readUTF().getBytes());
+                        cmdout.write("\nexit\n".getBytes());
+                        cmdout.flush();
+                        InputStream cmdin=p.getInputStream();
+                        byte[] buff=new byte[4096];
+                        int len=-1;
+                        while((len=cmdin.read(buff))!=-1){
+                            dos.writeInt(len);
+                            dos.write(buff,0,len);
+                        }
+                        dos.writeInt(0);
+                        p.destroy();
+                        System.out.println("exec cmd end");
+                            
+                         break;
+                      case "heart":
+                          //心跳
+                          break;
+                }
+                dos.flush();
+                }
+            } catch (IOException e) {
+                
+            } finally {
+                try {
+                    s.close();
+                } catch (IOException ee) {}
+                System.out.println("close");
+            }
+			/*ByteBuffer echoBuffer=ByteBuffer.allocate(4096);
 			java.lang.Process p=(java.lang.Process) mSelectionKey.attachment();
 			OutputStream cmdout=p.getOutputStream();
 			byte[] buff=new byte[4096];
@@ -169,8 +272,9 @@ public class Shell
 					key.attach(p);
 				}
 				catch (ClosedChannelException e)
-				{}*/
-			}
+				{}
+                
+			}*/
 		}
 	}
  

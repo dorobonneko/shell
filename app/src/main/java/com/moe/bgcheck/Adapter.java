@@ -8,15 +8,26 @@ import android.content.Context;
 import android.app.usage.UsageStatsManager;
 import com.moe.bgcheck.utils.AppProcess;
 import com.moe.bgcheck.utils.ProcessUtils;
+import android.os.BatteryManager;
+import android.os.PowerManager;
 public class Adapter extends BaseAdapter
 {
+    private PowerManager bm;
 	private PackageManager pm;
 	private List<PackageInfo> list;
     private UsageStatsManager usm;
 	private Map<String,Map<String,String>> blacklist;
     private Map<String,AppProcess> running;
+    private static Map<String,String> STATE=new HashMap<>();
+    static{
+        STATE.put("cch","未运行");
+        STATE.put("bg","后台");
+        STATE.put("top","顶层");
+        STATE.put("pers","前台");
+    }
 	public Adapter(Context context,List<PackageInfo> list,Map<String,Map<String,String>> blacklist,Map<String,AppProcess> running){
 		this.pm=context.getPackageManager();
+        bm=(PowerManager) context.getSystemService(Context.POWER_SERVICE);
         usm=(UsageStatsManager) context.getSystemService(context.USAGE_STATS_SERVICE);
 		this.list=list;
 		this.blacklist=blacklist;
@@ -72,7 +83,7 @@ public class Adapter extends BaseAdapter
         AppProcess process=running.get(info.packageName);
         if(process!=null)
         {
-            vh.fore.setVisibility(process.isForeground()?View.VISIBLE:View.GONE);
+            /*vh.fore.setVisibility(process.isForeground()?View.VISIBLE:View.GONE);
              if(!process.isRunning())
                 vh.service.setVisibility(View.GONE);
                 else{
@@ -81,15 +92,23 @@ public class Adapter extends BaseAdapter
                 vh.service.setVisibility(View.VISIBLE);
                 vh.service.setText(processes.length+"个进程"+services.length+"个服务");
                 }
-                
+                */
+                vh.fore.setVisibility(View.GONE);
+                vh.service.setVisibility(View.VISIBLE);
+                vh.service.setText(STATE.get(process.state));
         }else{
             vh.fore.setVisibility(View.GONE);
             vh.service.setVisibility(View.GONE);
         }
+        if(bm.isIgnoringBatteryOptimizations(info.packageName)){
+            vh.ignoreidle.setVisibility(View.VISIBLE);
+        }else{
+            vh.ignoreidle.setVisibility(View.GONE);
+        }
 		return p2;
 	}
 	class ViewHolder{
-		TextView title,summary,idle,fore,service;
+		TextView title,summary,idle,fore,service,ignoreidle;
 		ImageView icon,radical;
 		CheckBox check;
 		ViewHolder(View v){
@@ -101,6 +120,7 @@ public class Adapter extends BaseAdapter
             idle=v.findViewById(R.id.idle);
             fore=v.findViewById(R.id.foreground);
             service=v.findViewById(R.id.service);
+            ignoreidle=v.findViewById(R.id.ignoreidle);
 		}
 	}
 }

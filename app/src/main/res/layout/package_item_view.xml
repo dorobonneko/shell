@@ -83,7 +83,7 @@
 		<TextView
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
-			android:text="Foreground"
+			android:text="前台"
 			android:id="@+id/foreground"
 			android:layout_marginEnd="8dp"
 			android:visibility="gone"/>
@@ -98,7 +98,15 @@
 		<TextView
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
-			android:text="Standby"
+			android:text="未优化"
+			android:id="@+id/ignoreidle"
+			android:visibility="gone"
+			android:layout_marginEnd="8dp"/>
+
+		<TextView
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="待机"
 			android:id="@+id/idle"
 			android:layout_marginEnd="8dp"
 			android:visibility="gone"/>

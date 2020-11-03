@@ -8,13 +8,14 @@ import android.view.*;
 import java.io.*;
 import java.net.*;
 import android.text.method.*;
+import com.moe.shell.Shell;
+import com.moe.shell.ShellOption;
 
 public class ShellActivity extends Activity implements View.OnClickListener
 {
 	TextView screen;
 	EditText input;
-	InputStream inputStream;
-	OutputStream outputStream;
+	ShellOption option;
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
@@ -27,101 +28,27 @@ public class ShellActivity extends Activity implements View.OnClickListener
 		screen.setTextIsSelectable(true);
 		input=findViewById(R.id.input);
 		findViewById(R.id.send).setOnClickListener(this);
-		
-    }
+        option=new ShellOption();
+		}
 
 	@Override
 	public void onClick(View p1)
 	{
-		Socket s=new Socket();
-		try
-		{
-			s.connect(new InetSocketAddress("127.0.0.1", 3335));
-			String text=input.getText().toString();
-			PrintWriter pw=new PrintWriter(s.getOutputStream());
-			pw.println(text);
-			//pw.println("--exit--");
-			pw.flush();
-			BufferedReader br=new BufferedReader(new InputStreamReader(s.getInputStream()));
-			StringBuilder sb=new StringBuilder();
-			String line=null;
-			while((line=br.readLine())!=null){
-				if("--exit--".equals(line))break;
-				sb.append(line).append("\n");
-			}
-			screen.setText(sb.toString());
-			screen.append("执行结束");
-		}
-		catch (Exception e)
-		{
-			screen.setText(e.getMessage());
-		}finally{
-			try
-			{
-				s.close();
-			}
-			catch (IOException e)
-			{}
-		}
-		/*try
-		{
-			String text=input.getText().toString();
-			if(!text.endsWith("\n"))
-				text=text.concat("\n");
-			outputStream.write(text.getBytes());
-			outputStream.flush();
-		}
-		catch (IOException e)
-		{
-			screen.append(e.getMessage());
-			screen.append("\n");
-		}*/
+		String text=input.getText().toString().trim();
+        try {
+           screen.setText(option.exec(text));
+        } catch (Exception e) {
+            screen.setText(e.getMessage());
+        }
+
 	}
-	void loop(){
-		new Thread(){
-			public void run(){
-				BufferedReader reader=new BufferedReader(new InputStreamReader(inputStream));
-				String line=null;
-				try
-				{
-					while ((line = reader.readLine()) != null)
-					{
-						final String result=line;
-						runOnUiThread(new Runnable(){
-
-								@Override
-								public void run()
-								{
-									// TODO: Implement this method
-									screen.append(result);
-								}
-							});
-					}
-				}
-				 catch (final IOException e)
-				{
-					runOnUiThread(new Runnable(){
-
-							@Override
-							public void run()
-							{
-								// TODO: Implement this method
-								screen.append(e.getMessage());
-							}
-						});
-				}finally{
-					runOnUiThread(new Runnable(){
-
-							@Override
-							public void run()
-							{
-								// TODO: Implement this method
-								screen.append("连接已关闭");
-							}
-						});
-				}
-			}
-		}.start();
-	}
+	
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        try {
+            option.close();
+        } catch (IOException e) {}
+    }
 	
 }

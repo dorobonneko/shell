@@ -8,10 +8,25 @@ import java.util.ArrayList;
 import android.app.usage.UsageStats;
 import java.util.Iterator;
 
-public class AppProcess {
+public class AppProcess implements Comparable<AppProcess> {
+
+    @Override
+    public int compareTo(AppProcess p1) {
+        if(p1==null)return 0;
+        if(isRunning()){
+            if(!p1.isRunning())
+                return -1;
+        }else{
+            if(p1.isRunning())
+                return 1;
+        }
+        return 0;
+    }
+    
     public String packageName;
     public Process[] process;
     public Service[] services;
+    public String state;
     public boolean isRunning(){
         return process!=null&&process.length>0;
     }

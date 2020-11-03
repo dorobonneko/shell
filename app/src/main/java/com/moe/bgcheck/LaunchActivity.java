@@ -23,11 +23,14 @@ import com.jaredrummler.android.processes.models.AndroidProcess;
 import android.app.usage.UsageStatsManager;
 import com.moe.bgcheck.utils.AppProcess;
 import com.moe.bgcheck.utils.ProcessUtils;
+import com.moe.shell.ShellOption;
+import com.moe.shell.ShellUtil;
 
 public class LaunchActivity extends Activity implements ListView.OnItemClickListener,
 SearchView.OnCloseListener,
 SearchView.OnQueryTextListener,
-ListView.OnItemLongClickListener
+ListView.OnItemLongClickListener,
+ShellOption.Callback
 {
 	private Map<String,Map<String,String>> blacklist;
 	private Menu mMenu;
@@ -38,9 +41,10 @@ ListView.OnItemLongClickListener
 	private java.lang.Process p;
 	private PrintWriter pw;
 	private Adapter mAdapter;
-    private Timer mTimer;
+    private ShellOption option;
     private UsageStatsManager usm;
     private Map<String,AppProcess> running;
+    private Timer mTimer=new Timer();
 	@Override
 	protected void onCreate(Bundle savedInstanceState)
 	{
@@ -68,21 +72,17 @@ ListView.OnItemLongClickListener
 		mListView.setAdapter(mAdapter=new Adapter(getApplicationContext(),mList=new ArrayList<>(),blacklist=Shell.getBlackList(),running=new HashMap<>()));
 		mList.addAll(getApks(false));
 		mAdapter.notifyDataSetChanged();
-       mTimer=new Timer();
-    mTimer.schedule(new TimerTask(){
-        public void run(){
-            final Map<String,AppProcess> map=ProcessUtils.getProcess(mList);
-            runOnUiThread(new Runnable(){
-                public void run(){
-                    running.clear();
-                    running.putAll(map);
-                    mAdapter.notifyDataSetChanged();
-                }
-            });
-        }
-    },1000,5000);
+        option=new ShellOption();
+        option.setCallback(this);
+        mTimer.schedule(new Task(),0,30000);
 	}
-	
+    @Override
+	public void onCloseShell(){
+        runOnUiThread(new Runnable(){
+            public void run(){
+        onResume();
+        }});
+    }
 	@Override
 	public boolean onQueryTextSubmit(String p1)
 	{
@@ -217,25 +217,8 @@ ListView.OnItemLongClickListener
 	{
 		// TODO: Implement this method
 		super.onResume();
-		StrictMode.setThreadPolicy(new StrictMode.ThreadPolicy.Builder().build());
-		Socket s=new Socket();
 		
-		try{
-			s.bind(new InetSocketAddress(3335));
-			getActionBar().setSubtitle("服务未启动!!!");
-			}catch(BindException e){
-			getActionBar().setSubtitle("服务已启动");
-		}catch(Exception e){
-            getActionBar().setSubtitle(e.getClass().getName());
-        }
-		finally{
-			try
-			{
-				s.close();
-			}
-			catch (IOException e)
-			{}
-		}
+        getActionBar().setSubtitle(option.isRunning()?"服务已启动":"服务未启动！！！");
 	}
 	
 	@Override
@@ -291,6 +274,10 @@ ListView.OnItemLongClickListener
 
                             @Override
                             public void run() {
+                                /*try {
+                                    option.close();
+                                } catch (IOException e) {}
+                                option = new ShellOption();*/
                                 onResume();
                             }
                         }, 1000);
@@ -338,24 +325,20 @@ ListView.OnItemLongClickListener
                         public void onClick(DialogInterface p1, int p2) {
                             new Thread(){
                                 public void run(){
-                            Socket s=new Socket();
-                            try {
-                                s.bind(new InetSocketAddress(3336));
-                                s.connect(new InetSocketAddress(3335));
-                            } catch (IOException e) {
-                                Toast.makeText(getApplicationContext(),"重启失败",Toast.LENGTH_SHORT).show();
-                            }finally{
-                                try {
-                                    s.close();
-                                } catch (IOException e) {}
-                                getWindow().getDecorView().postDelayed(new Runnable(){
+                                    try {
+                                        option.reboot();
+                                    } catch (IOException e) {}
+                                    getWindow().getDecorView().postDelayed(new Runnable(){
 
                                         @Override
                                         public void run() {
+                                            /*try {
+                                                option.close();
+                                            } catch (IOException e) {}
+                                            option = new ShellOption();*/
                                             onResume();
                                         }
                                     }, 1000);
-                                }
                                 }}.start();
                             
                         }
@@ -466,23 +449,16 @@ ListView.OnItemLongClickListener
                 if(!usm.isAppInactive(info.packageName))
                     new Thread(){
                         public void run(){
-                            Socket s=new Socket();
-                            try{
-                                s.connect(new InetSocketAddress(3335));
-                                PrintWriter pw=new PrintWriter(s.getOutputStream());
-                                pw.write("am set-inactive ");
-                                pw.write(info.packageName);
-                                pw.write(" true");
-                                pw.println();
-                                pw.flush();
-                                pw.close();
-                                getWindow().getDecorView().postDelayed(new Runnable(){
+                            
+                              try{
+                               option.exec("am set-inactive "+info.packageName+" true");
+                                runOnUiThread(new Runnable(){
 
                                         @Override
                                         public void run() {
-                                            mAdapter.notifyDataSetChanged();
-                                             }
-                                    },500);
+                                              mAdapter.notifyDataSetChanged();
+                                              }
+                                    });
                             }catch(final Exception e){
                                 runOnUiThread(new Runnable(){
 
@@ -492,9 +468,7 @@ ListView.OnItemLongClickListener
                                         }
                                     });
                             }finally{
-                                try {
-                                    s.close();
-                                } catch (IOException e) {}
+                                
                             }
                         }
                     }.start();
@@ -560,12 +534,52 @@ ListView.OnItemLongClickListener
 		pw.flush();
 		pw.close();
 		p.destroy();
+        mTimer.cancel();
 	}
-	class TaskTimerTask extends TimerTask {
+    class Task extends TimerTask {
 
         @Override
         public void run() {
-            List<AndroidAppProcess> running=AndroidProcesses.getRunningAppProcesses();
+            Iterator<PackageInfo> i=data.iterator();
+            StringBuilder sb=new StringBuilder();
+            while(i.hasNext()){
+                String pn=i.next().packageName;
+                sb.append("echo ");
+                sb.append(pn);
+                sb.append("\n");
+                sb.append("echo $(dumpsys appops --package ");
+                sb.append(pn);
+                sb.append("|grep state=|cut -d = -f 2)\n");
+            }
+            final Map<String,AppProcess> list=new HashMap<>();
+            ShellOption option=new ShellOption();
+            try{
+            BufferedReader br=new BufferedReader(new InputStreamReader(new ByteArrayInputStream(option.exec(sb.toString()).getBytes())));
+            
+                do{
+                    String line=br.readLine();
+                    if (line == null)
+                        break;
+                        AppProcess ap=new AppProcess();
+                        ap.state=br.readLine();
+                        
+                        list.put(line,ap);
+                }while(true);
+                br.close();
+                option.close();
+            } catch (IOException e) {}
+            finally{
+                
+                runOnUiThread(new Runnable(){
+
+                        @Override
+                        public void run() {
+                            running.clear();
+                            running.putAll(list);
+                            mAdapter.notifyDataSetChanged();
+                        }
+                    });
+            }
         }
 
         
