@@ -20,7 +20,7 @@ public class Adapter extends BaseAdapter
     private Map<String,AppProcess> running;
     private static Map<String,String> STATE=new HashMap<>();
     static{
-        STATE.put("cch","未运行");
+        STATE.put("cch","");
         STATE.put("bg","后台");
         STATE.put("top","顶层");
         STATE.put("pers","前台");

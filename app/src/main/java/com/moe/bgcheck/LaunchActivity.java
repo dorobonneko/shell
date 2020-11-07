@@ -93,7 +93,7 @@ ShellOption.Callback
 	@Override
 	public boolean onQueryTextChange(final String p1)
 	{
-		
+		if(mMenu==null)return false;
 		ArrayList<PackageInfo> list=getApks(!mMenu.findItem(R.id.showSystem).isVisible()).stream().filter(new Predicate<PackageInfo>(){
 
 				@Override
@@ -543,7 +543,10 @@ ShellOption.Callback
             Iterator<PackageInfo> i=data.iterator();
             StringBuilder sb=new StringBuilder();
             while(i.hasNext()){
-                String pn=i.next().packageName;
+                PackageInfo info=i.next();
+                if((info.applicationInfo.flags&ApplicationInfo.FLAG_SYSTEM)==ApplicationInfo.FLAG_SYSTEM)
+                    continue;
+                String pn=info.packageName;
                 sb.append("echo ");
                 sb.append(pn);
                 sb.append("\n");

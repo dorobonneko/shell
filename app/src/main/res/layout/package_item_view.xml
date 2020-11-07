@@ -93,7 +93,8 @@
 			android:layout_height="wrap_content"
 			android:id="@+id/service"
 			android:layout_marginEnd="8dp"
-			android:visibility="gone"/>
+			android:visibility="gone"
+            android:textColor="#FF39C5BB"/>
 
 		<TextView
 			android:layout_width="wrap_content"
