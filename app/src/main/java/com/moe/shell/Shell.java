@@ -121,6 +121,7 @@ public class Shell implements Thread.UncaughtExceptionHandler
             exec=new PrintWriter(process.getOutputStream());
             exec.println("pm grant com.moe.bgcheck android.permission.PACKAGE_USAGE_STATS");
             exec.println("pm grant com.moe.bgcheck android.permission.DUMP");
+            exec.println("dumpsys deviceidle force-idle light");
             exec.flush();
 			ScheduledExecutorService service = Executors
 				.newSingleThreadScheduledExecutor();

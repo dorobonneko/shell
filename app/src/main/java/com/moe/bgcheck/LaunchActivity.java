@@ -25,12 +25,13 @@ import com.moe.bgcheck.utils.AppProcess;
 import com.moe.bgcheck.utils.ProcessUtils;
 import com.moe.shell.ShellOption;
 import com.moe.shell.ShellUtil;
+import com.moe.shell.Heart;
 
 public class LaunchActivity extends Activity implements ListView.OnItemClickListener,
 SearchView.OnCloseListener,
 SearchView.OnQueryTextListener,
 ListView.OnItemLongClickListener,
-ShellOption.Callback
+Heart.Callback
 {
 	private Map<String,Map<String,String>> blacklist;
 	private Menu mMenu;
@@ -42,9 +43,10 @@ ShellOption.Callback
 	private PrintWriter pw;
 	private Adapter mAdapter;
     private ShellOption option;
+    private Heart heart;
     private UsageStatsManager usm;
     private Map<String,AppProcess> running;
-    private Timer mTimer=new Timer();
+    private Timer mTimer;
 	@Override
 	protected void onCreate(Bundle savedInstanceState)
 	{
@@ -73,15 +75,23 @@ ShellOption.Callback
 		mList.addAll(getApks(false));
 		mAdapter.notifyDataSetChanged();
         option=new ShellOption();
-        option.setCallback(this);
-        mTimer.schedule(new Task(),0,30000);
-	}
+        heart=new Heart(this);
+        heart.test();
+        	}
+
     @Override
-	public void onCloseShell(){
-        runOnUiThread(new Runnable(){
-            public void run(){
-        onResume();
-        }});
+    public void onConnected() {
+        getActionBar().setSubtitle("服务已运行");
+        mTimer=new Timer();
+        mTimer.schedule(new Task(),0,30000);
+        
+    }
+
+    @Override
+    public void onDisConnected() {
+        getActionBar().setSubtitle("服务未运行!!!");
+        if(mTimer!=null)
+        mTimer.cancel();
     }
 	@Override
 	public boolean onQueryTextSubmit(String p1)
@@ -217,9 +227,8 @@ ShellOption.Callback
 	{
 		// TODO: Implement this method
 		super.onResume();
-		
-        getActionBar().setSubtitle(option.isRunning()?"服务已启动":"服务未启动！！！");
-	}
+		//heart.test();
+        	}
 	
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu)
@@ -278,7 +287,7 @@ ShellOption.Callback
                                     option.close();
                                 } catch (IOException e) {}
                                 option = new ShellOption();*/
-                                onResume();
+                                heart.test();
                             }
                         }, 1000);
 				}catch(Exception e){}
@@ -336,7 +345,7 @@ ShellOption.Callback
                                                 option.close();
                                             } catch (IOException e) {}
                                             option = new ShellOption();*/
-                                            onResume();
+                                            heart.test();
                                         }
                                     }, 1000);
                                 }}.start();
@@ -535,6 +544,12 @@ ShellOption.Callback
 		pw.close();
 		p.destroy();
         mTimer.cancel();
+        try {
+            option.close();
+        } catch (IOException e) {}
+        try {
+            heart.close();
+        } catch (Exception e) {}
 	}
     class Task extends TimerTask {
 
