@@ -102,6 +102,7 @@ public class ShellOption {
         }while(true);
         return sb.toString();
     }
+    
     public void close() throws IOException{
         if(socket!=null)
         socket.close();

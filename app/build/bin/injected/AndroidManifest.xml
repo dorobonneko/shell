@@ -21,6 +21,9 @@
 	<uses-permission
 		android:name="android.permission.DUMP"/>
 
+	<uses-permission
+		android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+
 	<application
 		android:name=".app.Application"
 		android:icon="@drawable/ic_launcher"
@@ -47,6 +50,9 @@
 		<activity
 			android:name=".ShellActivity"
 			android:label="Shell"/>
+
+		<activity
+			android:name=".BootActivity"/>
 
 	</application>
 

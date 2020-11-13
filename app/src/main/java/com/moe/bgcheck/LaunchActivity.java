@@ -82,6 +82,9 @@ Heart.Callback
     @Override
     public void onConnected() {
         getActionBar().setSubtitle("服务已运行");
+        if(mTimer!=null){
+            return;
+        }
         mTimer=new Timer();
         mTimer.schedule(new Task(),0,30000);
         
@@ -92,6 +95,7 @@ Heart.Callback
         getActionBar().setSubtitle("服务未运行!!!");
         if(mTimer!=null)
         mTimer.cancel();
+        mTimer=null;
     }
 	@Override
 	public boolean onQueryTextSubmit(String p1)
@@ -358,6 +362,12 @@ Heart.Callback
 					requestPermissions(new String[]{ShizukuApiConstants.PERMISSION},3338);
 				}else onRequestPermissionsResult(3338,new String[]{ShizukuApiConstants.PERMISSION},new int[]{PackageManager.PERMISSION_GRANTED});
 				*/break;
+             case R.id.boot:
+                 if(mTimer==null)
+                     Toast.makeText(getApplicationContext(),"服务未启动",Toast.LENGTH_SHORT).show();
+                     else
+                     startActivity(new Intent(this,BootActivity.class));
+                 break;
 		}
 		return true;
 	}
@@ -543,6 +553,7 @@ Heart.Callback
 		pw.flush();
 		pw.close();
 		p.destroy();
+        if(mTimer!=null)
         mTimer.cancel();
         try {
             option.close();

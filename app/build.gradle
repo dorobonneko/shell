@@ -24,6 +24,7 @@ android {
 }
 
 dependencies {
+	api project(':ifw')
     compile 'com.jaredrummler:android-processes:+'
     //implementation 'moe.shizuku.privilege:api:+'
 	 compile fileTree(dir: 'libs', include: ['*.jar'])

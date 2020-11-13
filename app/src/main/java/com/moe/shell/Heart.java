@@ -16,7 +16,7 @@ public class Heart implements AutoCloseable {
         socket=new Socket();
         
     }
-    public void test(){
+    public boolean test(){
         try {
             if (socket.isConnected()) {
                 dos.writeUTF("heart");
@@ -52,6 +52,7 @@ public class Heart implements AutoCloseable {
                 }).start();
             }
             call.onConnected();
+            return true;
         } catch (IOException e) {
             try {
                 socket.close();
@@ -59,6 +60,7 @@ public class Heart implements AutoCloseable {
             socket = new Socket();
             call.onDisConnected();
         }
+        return false;
     }
 
     @Override
