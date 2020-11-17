@@ -122,6 +122,7 @@ public class Shell implements Thread.UncaughtExceptionHandler
             exec.println("pm grant com.moe.bgcheck android.permission.PACKAGE_USAGE_STATS");
             exec.println("pm grant com.moe.bgcheck android.permission.DUMP");
             exec.println("dumpsys deviceidle force-idle light");
+            exec.println("dumpsys deviceidle force-inactive");
             exec.flush();
 			ScheduledExecutorService service = Executors
 				.newSingleThreadScheduledExecutor();
@@ -302,6 +303,7 @@ public class Shell implements Thread.UncaughtExceptionHandler
 								kill(packageName,false);
 					}
 			}
+            exec.println("dumpsys deviceidle step deep");
 				exec.println("dumpsys activity -a s|grep \"* ServiceRecord{\"|awk -F '[ /]+' '{cmd=\"am set-inactive \"$5\" true\";system(cmd)}'");
 				exec.flush();
 			}catch(Exception e){
@@ -396,7 +398,7 @@ public class Shell implements Thread.UncaughtExceptionHandler
 				else
 			exec.println("am kill "+packageName);
 			//exec.println("dumpsys deviceidle whilelist -"+packageName);//移出未优化白名单
-			//exec.println("am set-inactive "+packageName+" true");//使app进入standby模式
+			exec.println("am set-inactive "+packageName+" true");//使app进入standby模式
 			exec.flush();
 			System.out.println("kill "+packageName);
 		}
