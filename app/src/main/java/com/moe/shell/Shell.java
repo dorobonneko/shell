@@ -133,9 +133,12 @@ public class Shell implements Thread.UncaughtExceptionHandler
 					public void run()
 					{
 						kill();
-						//System.exit(0);
+                        exec.println("dumpsys deviceidle step deep");
+                        //exec.println("dumpsys activity -a s|grep \"* ServiceRecord{\"|awk -F '[ /]+' '{cmd=\"am set-inactive \"$5\" true\";system(cmd)}'");
+                        exec.println("pm list packages -a|awk -F '[:]+' '{cmd=\"am set-inactive \"$2\" true\";system(cmd)}'");
+                        exec.flush();
 					}
-				}, 1, 5, TimeUnit.MINUTES);
+				}, 5, 60, TimeUnit.SECONDS);
 			mProcessBuilder=new ProcessBuilder();
 			mProcessBuilder.directory(new File("/sdcard"));
 			mProcessBuilder.redirectErrorStream(true);
@@ -286,8 +289,10 @@ public class Shell implements Thread.UncaughtExceptionHandler
 				Set<String> recents=getRecents();
 				Map<String,Map<String,String>> blacklist=getBlackList();
 			for(String packageName:blacklist.keySet()){
+                    exec.println("am set-inactive "+packageName+" true");//使app进入standby模式
+                    exec.flush();
 				if(recents.contains(packageName)){
-						//standby(packageName);
+						//
 					continue;
 					}
 					Map<String,String> property=blacklist.get(packageName);
@@ -303,9 +308,7 @@ public class Shell implements Thread.UncaughtExceptionHandler
 								kill(packageName,false);
 					}
 			}
-            exec.println("dumpsys deviceidle step deep");
-				exec.println("dumpsys activity -a s|grep \"* ServiceRecord{\"|awk -F '[ /]+' '{cmd=\"am set-inactive \"$5\" true\";system(cmd)}'");
-				exec.flush();
+            
 			}catch(Exception e){
 				System.out.println(e.getMessage());
 			}

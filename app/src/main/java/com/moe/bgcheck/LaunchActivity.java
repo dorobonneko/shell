@@ -26,12 +26,14 @@ import com.moe.bgcheck.utils.ProcessUtils;
 import com.moe.shell.ShellOption;
 import com.moe.shell.ShellUtil;
 import com.moe.shell.Heart;
+import com.moe.bgcheck.model.BlackList;
 
 public class LaunchActivity extends Activity implements ListView.OnItemClickListener,
 SearchView.OnCloseListener,
 SearchView.OnQueryTextListener,
 ListView.OnItemLongClickListener,
-Heart.Callback
+Heart.Callback,
+BlackList.Callback
 {
 	private Map<String,Map<String,String>> blacklist;
 	private Menu mMenu;
@@ -58,6 +60,7 @@ Heart.Callback
         }catch(Exception e){}
 		init();
 		super.onCreate(savedInstanceState);
+        BlackList.getInstance().setCallback(this);
         usm=(UsageStatsManager) getSystemService(USAGE_STATS_SERVICE);
 		setContentView(R.layout.listview);
 		setActionBar((Toolbar)findViewById(R.id.toolbar));
@@ -71,13 +74,21 @@ Heart.Callback
 		mListView.setOnItemLongClickListener(this);
 		registerForContextMenu(mListView);
 		data=getPackageManager().getInstalledPackages(PackageManager.MATCH_ALL | PackageManager.GET_SERVICES);
-		mListView.setAdapter(mAdapter=new Adapter(getApplicationContext(),mList=new ArrayList<>(),blacklist=Shell.getBlackList(),running=new HashMap<>()));
+		mListView.setAdapter(mAdapter=new Adapter(getApplicationContext(),mList=new ArrayList<>(),blacklist=BlackList.getInstance().getBlackList(),running=new HashMap<>()));
 		mList.addAll(getApks(false));
 		mAdapter.notifyDataSetChanged();
         option=new ShellOption();
         heart=new Heart(this);
         heart.test();
-        	}
+    }
+
+    @Override
+    public void onChanged(boolean added, String packageName) {
+        if(mAdapter!=null){
+        mAdapter.notifyDataSetChanged();
+        }
+    }
+
 
     @Override
     public void onConnected() {
@@ -415,12 +426,11 @@ Heart.Callback
 		String packageName=((PackageInfo)l.getAdapter().getItem(position)).packageName;
 		if(vh.check.isChecked()){
 			blacklist.remove(packageName);
-			((BaseAdapter)mListView.getAdapter()).notifyDataSetInvalidated();
+			BlackList.getInstance().notifyRemoved(packageName);
 		}else{
 			blacklist.put(packageName,null);
-			((BaseAdapter)mListView.getAdapter()).notifyDataSetInvalidated();
-		}
-		save();
+            BlackList.getInstance().notifyAdded(packageName);
+			}
 	}
 
 	@Override
@@ -458,11 +468,12 @@ Heart.Callback
 				if(property==null)
 					blacklist.put(info.packageName,property=new HashMap<>());
 					property.put("radical","true");
+                    BlackList.getInstance().notifyChanged(info.packageName);
 				break;
 			case R.id.cancel_radical:
 				if(property!=null)
 					property.remove("radical");
-					
+					BlackList.getInstance().notifyChanged(info.packageName);
 				break;
             case R.id.appstandby:
                 if(!usm.isAppInactive(info.packageName))
@@ -497,44 +508,12 @@ Heart.Callback
 			if(property.isEmpty())
 				blacklist.put(info.packageName,null);
 		}
-		save();
-		((BaseAdapter)mListView.getAdapter()).notifyDataSetChanged();
+		
 		return true;
 	}
 
 	
-	void save(){
-		try
-		{
-			PrintWriter pw=new PrintWriter(openFileOutput("forcestop",MODE_PRIVATE));
-			LaunchActivity.this.pw.println("chmod 644 "+new File(getFilesDir(),"forcestop").getAbsolutePath());
-			LaunchActivity.this.pw.flush();
-			Iterator<Map.Entry<String,Map<String,String>>> i=blacklist.entrySet().iterator();
-			while(i.hasNext()){
-				Map.Entry<String,Map<String,String>> entry=i.next();
-				pw.print(entry.getKey());
-				Map<String,String> property=entry.getValue();
-				if(property!=null){
-					pw.print(":");
-					Iterator<Map.Entry<String,String>> iterator=property.entrySet().iterator();
-					while(iterator.hasNext()){
-						Map.Entry<String,String> property_item=iterator.next();
-						pw.print(property_item.getKey());
-						pw.print("=");
-						pw.print(property_item.getValue());
-						if(iterator.hasNext())
-							pw.print(",");
-					}
-				}
-				pw.println();
-			}
-			pw.flush();
-			pw.close();
-		}
-		catch (IOException e)
-		{}
-	}
-
+	
 	@Override
 	public void onBackPressed()
 	{

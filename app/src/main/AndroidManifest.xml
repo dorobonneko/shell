@@ -44,7 +44,23 @@
             android:label="Shell"/>
 
         <activity android:name=".BootActivity"/>
-
+            <receiver
+                android:name=".BootBroadcast">
+                <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                    <category android:name="android.intent.category.DEFAULT"/>
+                </intent-filter>
+            </receiver>
+            <receiver
+                android:name=".AppInstallBroadcast">
+                <intent-filter>
+                    <action android:name="android.intent.action.PACKAGE_ADDED"/>
+                    <action android:name="android.intent.action.PACKAGE_REMOVED"/>
+                    
+                    <category android:name="android.intent.category.DEFAULT"/>
+                    <data android:scheme="package" />
+                </intent-filter>
+            </receiver>
     </application>
 
 </manifest>
